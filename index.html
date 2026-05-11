@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Medieval Science Quest - MCAS Review</title>
+
+<style>
+
+body{
+    margin:0;
+    overflow:hidden;
+    font-family:Georgia, serif;
+    background:black;
+}
+
+/* GAME WORLD */
+
+#gameWorld{
+    width:100vw;
+    height:100vh;
+    position:relative;
+    overflow:hidden;
+
+    background:
+    linear-gradient(to bottom,#5c8a3a,#2f4f1f);
+}
+
+/* HUD */
+
+#hud{
+    position:absolute;
+    top:10px;
+    left:10px;
+
+    z-index:999;
+
+    color:white;
+
+    background:rgba(0,0,0,0.7);
+
+    padding:12px;
+
+    border-radius:10px;
+
+    font-size:20px;
+}
+
+/* HERO */
+
+#hero{
+    width:60px;
+    height:60px;
+
+    position:absolute;
+
+    left:50px;
+    top:50px;
+
+    background:gold;
+
+    border:4px solid white;
+
+    border-radius:10px;
+
+    animation:heroWalk .5s infinite;
+}
+
+@keyframes heroWalk{
+    0%{transform:translateY(0px);}
+    50%{transform:translateY(-5px);}
+    100%{transform:translateY(0px);}
+}
+
+/* NPCS */
+
+.npc{
+    position:absolute;
+    font-size:60px;
+}
+
+#wizard{
+    left:300px;
+    top:200px;
+}
+
+/* BOSSES */
+
+.boss{
+    position:absolute;
+    font-size:90px;
+
+    animation:bossFloat 1s infinite;
+}
+
+@keyframes bossFloat{
+    0%{transform:translateY(0px);}
+    50%{transform:translateY(-8px);}
+    100%{transform:translateY(0px);}
+}
+
+#dragon{
+    left:700px;
+    top:300px;
+}
+
+#golem{
+    left:1100px;
+    top:200px;
+    display:none;
+}
+
+#treasure{
+    position:absolute;
+    left:1500px;
+    top:250px;
+
+    font-size:90px;
+
+    display:none;
+}
+
+/* DIALOGUE */
+
+#dialogueBox{
+    position:absolute;
+
+    top:50%;
+    left:50%;
+
+    transform:translate(-50%,-50%);
+
+    width:450px;
+
+    background:white;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    z-index:2000;
+
+    display:none;
+}
+
+.choiceBtn{
+    width:100%;
+    padding:12px;
+    margin:10px 0;
+    cursor:pointer;
+    font-size:16px;
+}
+
+#message{
+    position:absolute;
+
+    bottom:20px;
+    left:50%;
+
+    transform:translateX(-50%);
+
+    color:white;
+
+    background:rgba(0,0,0,0.7);
+
+    padding:10px 20px;
+
+    border-radius:10px;
+
+    font-size:22px;
+}
+
+button{
+    padding:8px 12px;
+    cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- AUDIO -->
+
+<audio id="correctSound">
+<source src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg">
+</audio>
+
+<audio id="wrongSound">
+<source src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg">
+</audio>
+
+<audio id="bossSound">
+<source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">
+</audio>
+
+<!-- HUD -->
+
+<div id="hud">
+
+<div>❤️ Health: <span id="health">100</span></div>
+
+<div>⭐ Score: <span id="score">0</span></div>
+
+<div>🏰 Level: <span id="level">1</span></div>
+
+<br>
+
+<button onclick="saveGame()">Save Game</button>
+
+<button onclick="loadGame()">Load Game</button>
+
+</div>
+
+<!-- GAME WORLD -->
+
+<div id="gameWorld">
+
+<div id="hero"></div>
+
+<div class="npc" id="wizard">🧙</div>
+
+<div class="boss" id="dragon">🐉</div>
+
+<div class="boss" id="golem">🪨</div>
+
+<div id="treasure">💎</div>
+
+</div>
+
+<!-- QUESTION BOX -->
+
+<div id="dialogueBox">
+
+<h2 id="questionText"></h2>
+
+<div id="choices"></div>
+
+<button onclick="closeDialogue()">Close</button>
+
+</div>
+
+<div id="message"></div>
+
+<script>
+
+/* QUESTIONS */
+
+const questions = [
+
+{
+question:"What type of energy does a moving object have?",
+choices:["Thermal","Potential","Kinetic","Chemical"],
+answer:"Kinetic"
+},
+
+{
+question:"Which layer of Earth is liquid?",
+choices:["Crust","Mantle","Outer Core","Inner Core"],
+answer:"Outer Core"
+},
+
+{
+question:"What force keeps planets orbiting the sun?",
+choices:["Gravity","Magnetism","Electricity","Friction"],
+answer:"Gravity"
+},
+
+{
+question:"What process changes liquid water into vapor?",
+choices:["Freezing","Condensation","Evaporation","Melting"],
+answer:"Evaporation"
+},
+
+{
+question:"Which rock forms from cooled lava?",
+choices:["Sedimentary","Igneous","Metamorphic","Fossil"],
+answer:"Igneous"
+},
+
+{
+question:"What controls what enters and exits a cell?",
+choices:["Nucleus","Membrane","Ribosome","Cytoplasm"],
+answer:"Membrane"
+}
+
+];
+
+/* ELEMENTS */
+
+const hero = document.getElementById("hero");
+
+const wizard = document.getElementById("wizard");
+
+const dragon = document.getElementById("dragon");
+
+const golem = document.getElementById("golem");
+
+const treasure = document.getElementById("treasure");
+
+const dialogueBox = document.getElementById("dialogueBox");
+
+const questionText = document.getElementById("questionText");
+
+const choicesDiv = document.getElementById("choices");
+
+const message = document.getElementById("message");
+
+const correctSound = document.getElementById("correctSound");
+
+const wrongSound = document.getElementById("wrongSound");
+
+const bossSound = document.getElementById("bossSound");
+
+/* GAME VARIABLES */
+
+let heroX = 50;
+let heroY = 50;
+
+let health = 100;
+let score = 0;
+let level = 1;
+
+let dragonDefeated = false;
+let golemDefeated = false;
+
+/* UPDATE HUD */
+
+function updateHUD(){
+
+document.getElementById("health").innerText = health;
+
+document.getElementById("score").innerText = score;
+
+document.getElementById("level").innerText = level;
+
+}
+
+/* MOVE HERO */
+
+function updateHero(){
+
+hero.style.left = heroX + "px";
+
+hero.style.top = heroY + "px";
+
+}
+
+/* COLLISION */
+
+function collision(a,b){
+
+const aRect = a.getBoundingClientRect();
+
+const bRect = b.getBoundingClientRect();
+
+return !(
+
+aRect.top > bRect.bottom ||
+aRect.bottom < bRect.top ||
+aRect.right < bRect.left ||
+aRect.left > bRect.right
+
+);
+
+}
+
+/* RANDOM QUESTION */
+
+function getQuestion(){
+
+return questions[Math.floor(Math.random()*questions.length)];
+
+}
+
+/* ASK QUESTION */
+
+function askQuestion(type){
+
+const q = getQuestion();
+
+dialogueBox.style.display = "block";
+
+questionText.innerText = q.question;
+
+choicesDiv.innerHTML = "";
+
+q.choices.forEach(choice=>{
+
+const btn = document.createElement("button");
+
+btn.classList.add("choiceBtn");
+
+btn.innerText = choice;
+
+btn.onclick = ()=>{
+
+if(choice===q.answer){
+
+correctSound.play();
+
+score += 10;
+
+showMessage("Correct!");
+
+if(type==="dragon"){
+
+dragon.style.display = "none";
+
+dragonDefeated = true;
+
+level = 2;
+
+golem.style.display = "block";
+
+showMessage("Dragon defeated!");
+
+}
+
+if(type==="golem"){
+
+golem.style.display = "none";
+
+golemDefeated = true;
+
+level = 3;
+
+treasure.style.display = "block";
+
+showMessage("Stone Golem defeated!");
+
+}
+
+}else{
+
+wrongSound.play();
+
+health -= 20;
+
+showMessage("Incorrect!");
+
+if(health<=0){
+
+alert("Game Over!");
+
+location.reload();
+
+}
+
+}
+
+updateHUD();
+
+closeDialogue();
+
+};
+
+choicesDiv.appendChild(btn);
+
+});
+
+}
+
+/* CLOSE */
+
+function closeDialogue(){
+
+dialogueBox.style.display = "none";
+
+}
+
+/* MESSAGE */
+
+function showMessage(text){
+
+message.innerText = text;
+
+setTimeout(()=>{
+
+message.innerText = "";
+
+},3000);
+
+}
+
+/* MOVEMENT */
+
+window.addEventListener("keydown",(e)=>{
+
+const speed = 15;
+
+if(e.key==="ArrowUp") heroY -= speed;
+
+if(e.key==="ArrowDown") heroY += speed;
+
+if(e.key==="ArrowLeft") heroX -= speed;
+
+if(e.key==="ArrowRight") heroX += speed;
+
+updateHero();
+
+/* WIZARD */
+
+if(collision(hero,wizard)){
+
+askQuestion("wizard");
+
+}
+
+/* DRAGON */
+
+if(collision(hero,dragon) && !dragonDefeated){
+
+bossSound.play();
+
+askQuestion("dragon");
+
+}
+
+/* GOLEM */
+
+if(collision(hero,golem) && dragonDefeated && !golemDefeated){
+
+bossSound.play();
+
+askQuestion("golem");
+
+}
+
+/* TREASURE */
+
+if(collision(hero,treasure) && dragonDefeated && golemDefeated){
+
+alert("You completed the Medieval Science Quest!");
+
+}
+
+});
+
+/* SAVE SYSTEM */
+
+function saveGame(){
+
+const saveData = {
+
+health,
+score,
+level,
+dragonDefeated,
+golemDefeated
+
+};
+
+localStorage.setItem("scienceQuestSave",JSON.stringify(saveData));
+
+showMessage("Game Saved!");
+
+}
+
+/* LOAD SYSTEM */
+
+function loadGame(){
+
+const saveData = JSON.parse(localStorage.getItem("scienceQuestSave"));
+
+if(saveData){
+
+health = saveData.health;
+
+score = saveData.score;
+
+level = saveData.level;
+
+dragonDefeated = saveData.dragonDefeated;
+
+golemDefeated = saveData.golemDefeated;
+
+if(dragonDefeated){
+
+dragon.style.display = "none";
+
+golem.style.display = "block";
+
+}
+
+if(golemDefeated){
+
+golem.style.display = "none";
+
+treasure.style.display = "block";
+
+}
+
+updateHUD();
+
+showMessage("Game Loaded!");
+
+}
+
+}
+
+/* START */
+
+updateHero();
+
+updateHUD();
+
+</script>
+
+</body>
+</html>
